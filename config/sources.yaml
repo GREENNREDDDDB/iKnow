@@ -1,0 +1,120 @@
+# iKnow 资讯源配置文件
+# 分类体系：国际形势、国内政策（国家/广东省/珠海市/澳门横琴）、大模型资讯、开源社区、众筹平台、智能硬件与机器人资讯
+
+sources:
+  # 国际形势
+  - name: "BBC News - World"
+    category: "国际形势"
+    url: "http://feeds.bbci.co.uk/news/world/rss.xml"
+    type: "rss"
+    enabled: true
+
+  - name: "Reuters - World News"
+    category: "国际形势"
+    url: "https://www.reutersagency.com/feed/?best-topics=world&post_type=best"
+    type: "rss"
+    enabled: true
+
+  - name: "CNN - World"
+    category: "国际形势"
+    url: "http://rss.cnn.com/rss/edition_world.rss"
+    type: "rss"
+    enabled: true
+
+  # 国内政策 - 国家
+  - name: "新华网 - 时政"
+    category: "国内政策/国家"
+    url: "http://www.news.cn/politics/"
+    type: "web"
+    enabled: true
+
+  - name: "人民网 - 时政"
+    category: "国内政策/国家"
+    url: "http://politics.people.com.cn/"
+    type: "web"
+    enabled: true
+
+  - name: "中国政府网"
+    category: "国内政策/国家"
+    url: "https://www.gov.cn/xinwen/"
+    type: "web"
+    enabled: true
+
+  # 国内政策 - 广东省
+  - name: "广东省人民政府"
+    category: "国内政策/广东省"
+    url: "http://www.gd.gov.cn/"
+    type: "web"
+    enabled: true
+
+  - name: "南方网 - 时政"
+    category: "国内政策/广东省"
+    url: "https://news.southcn.com/"
+    type: "web"
+    enabled: true
+
+  # 国内政策 - 珠海市
+  - name: "珠海市人民政府"
+    category: "国内政策/珠海市"
+    url: "http://www.zhuhai.gov.cn/"
+    type: "web"
+    enabled: true
+
+  # 国内政策 - 澳门横琴
+  - name: "横琴粤澳深度合作区"
+    category: "国内政策/澳门横琴"
+    url: "https://www.hengqin.gov.cn/"
+    type: "web"
+    enabled: true
+
+  # 大模型资讯
+  - name: "Hugging Face Blog"
+    category: "大模型资讯"
+    url: "https://huggingface.co/blog/feed.xml"
+    type: "rss"
+    enabled: true
+
+  - name: "OpenAI Blog"
+    category: "大模型资讯"
+    url: "https://openai.com/blog/rss.xml"
+    type: "rss"
+    enabled: true
+
+  - name: "Anthropic News"
+    category: "大模型资讯"
+    url: "https://www.anthropic.com/news/rss.xml"
+    type: "rss"
+    enabled: true
+
+  # 开源社区
+  - name: "GitHub Blog"
+    category: "开源社区"
+    url: "https://github.blog/feed/"
+    type: "rss"
+    enabled: true
+
+  - name: "Hacker News"
+    category: "开源社区"
+    url: "https://news.ycombinator.com/rss"
+    type: "rss"
+    enabled: true
+
+  # 众筹平台
+  - name: "Kickstarter - Technology"
+    category: "众筹平台"
+    url: "https://www.kickstarter.com/projects.rss?category=technology"
+    type: "rss"
+    enabled: true
+
+  # 智能硬件与机器人资讯
+  - name: "TechCrunch - Robotics"
+    category: "智能硬件与机器人资讯"
+    url: "https://techcrunch.com/category/robotics/feed/"
+    type: "rss"
+    enabled: true
+
+  - name: "The Verge - Tech"
+    category: "智能硬件与机器人资讯"
+    url: "https://www.theverge.com/rss/index.xml"
+    type: "rss"
+    enabled: true
