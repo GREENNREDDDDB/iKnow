@@ -22,6 +22,7 @@ class AppConfig:
     base_dir: Path = field(default_factory=lambda: Path(__file__).parent.parent.parent)
     data_dir: Path = field(default_factory=lambda: Path(__file__).parent.parent.parent / "data")
     config_dir: Path = field(default_factory=lambda: Path(__file__).parent.parent.parent / "config")
+    _custom_sources_path: Path | None = None
 
     @property
     def db_path(self) -> Path:
@@ -37,7 +38,13 @@ class AppConfig:
 
     @property
     def sources_yaml_path(self) -> Path:
+        if self._custom_sources_path:
+            return self._custom_sources_path
         return self.config_dir / "sources.yaml"
+        
+    @sources_yaml_path.setter
+    def sources_yaml_path(self, value: Path):
+        self._custom_sources_path = value
 
     @property
     def prompts_dir(self) -> Path:

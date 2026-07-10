@@ -5,6 +5,11 @@ from pathlib import Path
 import json
 from datetime import datetime
 import os
+import sys
+
+# 将项目根目录添加到 Python 的模块搜索路径中
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
 from src.config.loader import ConfigLoader
 from src.storage.db_manager import DBManager

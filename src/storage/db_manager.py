@@ -37,11 +37,12 @@ class DBManager:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS articles (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    content_hash TEXT UNIQUE NOT NULL,
+                    content_hash TEXT NOT NULL,
                     publish_time TEXT NOT NULL,
                     category TEXT NOT NULL,
                     filename TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(content_hash, publish_time)
                 )
             """)
             conn.execute("""
