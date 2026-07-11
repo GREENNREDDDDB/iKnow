@@ -1,170 +1,78 @@
-# iKnow - 个人资讯收集与整理 Agent
+# 🧠 iKnow - 个人资讯收集与整理系统
 
-一个基于 Python 的自动化资讯处理系统，实现权威源多分类采集、精准去重、LLM 结构化整理、关系图谱可视化、交叉推理总结。支持 **每日定时全自动运行** 与 **自然语言按需检索** 双模式。
+iKnow 已经从一个传统的独立 Python 爬虫项目，全面进化为 **[Hermes Agent](https://github.com/NousResearch/hermes-agent) 的原生插件架构**。
 
-## 🚀 功能特性
+通过完全拥抱 AI Agent 的工具调用（Tool Calling）和网页浏览能力，iKnow 实现了从资讯获取、去重总结、知识图谱渲染到跨平台网页托管的**端到端全自动化闭环**。
 
-### 1. 双模式采集
-- **每日定时全自动检索**：每天 09:00 自动从配置的权威网站采集最新资讯
-- **自然语言按需定向检索**：通过自然语言查询特定主题的资讯
+---
 
-### 2. 精准去重
-- 基于 `内容 + 发布时间` 严格比对，零重复处理
-- 使用 MD5 哈希和时间戳双重验证
+## 🎯 核心特性
 
-### 3. 结构化输出
-- 生成带引用标签的 Markdown 文档
-- 按分类与时间戳归档
+- **🤖 Agent 驱动抓取**：废弃了传统的 DOM 解析爬虫。通过 Hermes 内置的 `web_extract` 工具，由大模型自主浏览网页并提取核心内容，具备极强的反爬虫对抗和结构容错能力。
+- **📝 结构化阅读与总结**：Agent 会自动提炼数百字的高质量资讯简报，并**强制要求在文档正文和文末提供可溯源的真实引用链接**。
+- **🕸️ 零代码知识图谱**：废弃了正则表达式实体提取。由大模型深层理解文章逻辑，提取核心 Nodes 与 Edges，利用底层的 NetworkX + Pyvis 自动渲染出交互式的 HTML 关系网络。
+- **☁️ 零维护云端托管**：每当产生新的总结或图谱，底层插件会自动触发 Git 提交，配合 GitHub Actions 自动编译出优雅的 [MkDocs Material](https://squidfunk.github.io/mkdocs-material/) 网页知识库，随时随地在手机或微信上阅读。
 
-### 4. 交叉推理
-- 支持多选分类/文档进行 LLM 关系推理
-- 输出至专属的交叉关系总结目录
+---
 
-### 5. 可视化图谱
-- 自动构建并渲染资讯实体关系网络
-- 支持 HTML 交互式查看
+## 📁 极简项目结构
 
-### 6. 源可配置
-- 权威网站列表支持 YAML 动态管理
-- 支持 AI 推荐增补
-
-## 🛠️ 技术栈
-
-- **语言**: Python 3.10+
-- **调度**: APScheduler (cron/interval)
-- **采集**: feedparser (RSS), requests + BeautifulSoup4 (网页)
-- **存储**: SQLite (元数据索引), Markdown (文档), JSON (图谱缓存)
-- **AI/LLM**: OpenAI SDK / LangChain (适配 gpt-4o-mini / 本地 Qwen)
-- **可视化**: NetworkX (图计算) + Pyvis (Streamlit 交互渲染)
-- **UI**: Streamlit (单页控制台)
-- **配置**: PyYAML + 环境变量隔离
-
-## 📁 目录结构
-
-```
+```text
 iKnow/
-├── config/                     # 配置根目录
-│   ├── sources.yaml            # 资讯源定义（分类/URL/类型/开关）
-│   └── prompts/                # LLM 提示词模板库
-├── src/                        # 核心源码目录
-│   ├── config/                 # 配置加载与热更新
-│   ├── collectors/             # RSS/网页采集路由
-│   ├── processors/             # 去重/摘要/图谱/交叉推理
-│   ├── storage/                # SQLite元数据/Markdown管理/图谱序列化
-│   ├── scheduler/              # APScheduler 定时与按需任务
-│   └── utils/                  # 时间戳/日志/哈希工具
-├── data/                       # 数据存储目录
-│   ├── documents/              # 分类存储整理文档
-│   │   ├── 国际形势/
-│   │   ├── 国内政策/国家/广东/珠海/横琴/
-│   │   ├── 大模型资讯/
-│   │   ├── 开源社区/
-│   │   ├── 众筹平台/
-│   │   ├── 智能硬件与机器人/
-│   │   └── 交叉关系总结/       # 交叉推理输出专用
-│   └── graphs/                 # 关系图谱 HTML/JSON 缓存
-├── ui/                         # 前端界面
-│   └── dashboard.py             # Streamlit 主界面
-├── tests/                      # 单元测试
-├── requirements.txt             # 项目依赖
-└── README.md                   # 项目说明文档
+├── .github/
+│   └── workflows/
+│       └── deploy-docs.yml      # GitHub Actions 网页自动部署配置
+├── config/
+│   └── sources.json             # 关注源列表（由 Agent 自动管理增删查改）
+├── data/                        # MkDocs Web 渲染的数据源
+│   ├── documents/               # Agent 生成的资讯简报 (分类存储)
+│   ├── graphs/                  # 生成的知识图谱 HTML
+│   └── index.md                 # Web 欢迎主页
+├── src/
+│   └── iknow_tools.py           # 核心代码：挂载在 Hermes 上的插件工具集
+├── CLAUDE.md                    # 内部开发与架构约束规范
+├── mkdocs.yml                   # Web 知识库站点配置文件
+└── README.md
 ```
 
-## 📋 分类体系
+---
 
-固定分类体系：
-- `国际形势`
-- `国内政策/国家`
-- `国内政策/广东省`
-- `国内政策/珠海市`
-- `国内政策/澳门横琴`
-- `大模型资讯`
-- `开源社区`
-- `众筹平台`
-- `智能硬件与机器人资讯`
+## 🚀 部署与使用指南
 
-## 🚀 快速开始
-
-### 1. 安装依赖
+### 1. 挂载插件到 Hermes Agent
+假设你正在使用 WSL2 并安装了 [hermes-agent](https://github.com/NousResearch/hermes-agent)。你只需要将本项目的核心工具文件软链接到 Hermes 的工具目录下即可：
 
 ```bash
-pip install -r requirements.txt
+# 进入你的 hermes-agent 安装目录
+cd /home/user/.hermes/hermes-agent
+
+# 将 iKnow 工具集挂载进去 (请将后面的路径替换为你实际的项目路径)
+ln -sf /mnt/d/4_DOCUMENTS/0_Learning/0_Projects/iKnow/src/iknow_tools.py tools/iknow_tools.py
 ```
 
-### 2. 启动 Streamlit UI
+### 2. 与 Agent 交互 (Prompt 示例)
+
+配置完成后，打开 Hermes Agent 的聊天窗口（终端或绑定的微信机器人），你可以直接用自然语言使唤它：
+
+#### 场景 A：管理关注源
+> "调用 `iknow_manage_sources` 帮我看一下目前有哪些关注的资讯源。然后帮我添加一个新的关注源：『量子位』，网址是 `https://www.qbitai.com`，分类写『大模型资讯』。"
+
+#### 场景 B：执行每日抓取工作流
+> "调用 `iknow_get_pending_tasks` 获取今日需要采集的网站。请你去浏览其中的大模型资讯网站，阅读它的头条新闻，然后写一篇简短总结，并使用 `iknow_save_document` 保存，`category` 写'大模型资讯'，`keyword` 提取文章关键词。最后调用 `iknow_render_graph` 生成一个包含核心节点的关系图谱。"
+
+#### 场景 C：设置定时任务
+> "每天早上 8:30 分，自动执行上述的抓取、总结、保存和画图的流程。"
+
+### 3. 查看知识库网页
+当 Agent 告诉你任务完成后，底层插件已经自动将生成的文件 Push 到了当前 GitHub 仓库。
+请前往 `https://<你的GitHub用户名>.github.io/<仓库名>/`，即可在手机或电脑上沉浸式阅读最新的专属资讯早报。
+
+---
+
+## 🔧 依赖要求
+
+iKnow 的插件工具依赖于部分 Python 库来渲染图谱。请在运行 Hermes 的虚拟环境（venv）中安装：
 
 ```bash
-streamlit run ui/dashboard.py
+pip install networkx pyvis
 ```
-
-### 3. 配置资讯源
-
-编辑 `config/sources.yaml` 文件，添加您需要监控的 RSS 或网页链接。
-
-### 4. 使用系统
-
-- 通过 Web 界面进行各种操作
-- 设置定时任务
-- 执行自然语言查询
-- 查看生成的文档和关系图谱
-
-## 📊 使用场景
-
-### 定时自动采集
-- 系统会在每天 09:00 自动从所有启用的资讯源采集最新信息
-- 自动去重，避免重复处理
-- 按照 `{资讯核心主题}_{YYYYMMDD_HHMMSS}.md` 格式命名并保存到对应分类目录
-
-### 自然语言按需检索
-- 通过自然语言输入框输入查询需求
-- 系统自动解析意图并从相关分类的资讯源检索
-- 按照 `{用户指定内容名}_{YYYYMMDD_HHMMSS}.md` 格式命名并保存
-
-### 交叉关系推理
-- 选择多个文档进行交叉分析
-- 系统生成关系推理报告
-- 按照 `{交叉资讯内容}_{YYYYMMDD_HHMMSS}.md` 格式命名并保存到交叉关系总结目录
-
-## 🏗️ 架构设计
-
-系统采用模块化设计，各组件职责分明：
-
-- **Config**: 负责配置加载和验证
-- **Collectors**: 负责从 RSS 和网页采集原始数据
-- **Processors**: 负责去重、LLM 处理、交叉推理、图谱构建
-- **Storage**: 负责数据库管理和文档存储
-- **Scheduler**: 负责定时任务和按需检索调度
-- **UI**: 提供用户交互界面
-
-## 🧪 测试
-
-项目包含完整的单元测试，覆盖所有主要功能模块：
-
-```bash
-# 运行所有测试
-python -m pytest tests/
-
-# 运行特定阶段的测试
-python -m pytest tests/test_phase1.py
-python -m pytest tests/test_phase2.py
-# ... etc
-```
-
-## 📈 引用格式
-
-所有生成的文档都包含标准的引用格式：
-
-```markdown
-关键政策指出...[^1]。技术路线已明确...[^2]。
-
-[^1]: [来源标题](原始URL) | 发布时间: YYYY-MM-DD
-[^2]: [来源标题](原始URL) | 发布时间: YYYY-MM-DD
-```
-
-## 🤝 贡献
-
-欢迎提交 Issue 和 Pull Request 来改进项目。
-
-## ©️ 许可证
-
-[MIT License](LICENSE)
