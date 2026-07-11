@@ -1,0 +1,14 @@
+site_name: iKnow 个人资讯库
+site_description: 自动化资讯收集与整理系统
+theme:
+  name: material
+  language: zh
+  features:
+    - navigation.tabs
+    - search.suggest
+    - search.highlight
+docs_dir: data
+nav:
+  - 首页: index.md
+  - 文档浏览: documents
+  - 关系图谱: graphs

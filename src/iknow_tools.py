@@ -5,6 +5,7 @@ iKnow 核心工具集 - 基于 Hermes Agent 深度重构
 
 import sys
 import json
+import subprocess
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, List
@@ -34,6 +35,31 @@ for d in [DOCS_DIR, GRAPHS_DIR, SOURCES_FILE.parent]:
 
 if not SOURCES_FILE.exists():
     SOURCES_FILE.write_text(json.dumps({"sources": []}, ensure_ascii=False))
+
+# =====================================================================
+# 自动同步 GitHub 逻辑
+# =====================================================================
+def _sync_to_github(commit_msg: str) -> str:
+    """执行 Git 提交和推送，自动将生成的文档上传至 GitHub"""
+    try:
+        cwd = str(IKNOW_ROOT)
+        # 添加 data 目录下的所有变动
+        subprocess.run(["git", "add", "data/"], cwd=cwd, check=True, capture_output=True)
+        
+        # 检查是否有变更，如果没有变更则跳过
+        status = subprocess.run(["git", "status", "--porcelain", "data/"], cwd=cwd, capture_output=True, text=True)
+        if not status.stdout.strip():
+            return "（没有检测到新文件，跳过 Git 同步）"
+        
+        # 提交并推送
+        subprocess.run(["git", "commit", "-m", commit_msg], cwd=cwd, check=True, capture_output=True)
+        subprocess.run(["git", "push"], cwd=cwd, check=True, capture_output=True)
+        return "（文件已成功同步至 GitHub 仓库）"
+    except subprocess.CalledProcessError as e:
+        error_msg = e.stderr.decode('utf-8', errors='ignore') if e.stderr else str(e)
+        return f"（Git 同步失败: {error_msg}）"
+    except Exception as e:
+        return f"（Git 同步出现异常: {str(e)}）"
 
 
 # =====================================================================
@@ -134,9 +160,9 @@ registry.register(
 # 3 & 4. 核心业务：文档存储与图谱渲染
 # =====================================================================
 def iknow_save_document_handler(args: Dict[str, Any]) -> str:
-    """保存 LLM 处理好的 Markdown 总结文档"""
+    """保存 LLM 处理好的 Markdown 总结文档，并同步到 GitHub"""
     category = args.get("category", "未分类")
-    title = args.get("title", "未命名资讯")
+    keyword = args.get("keyword", "资讯")
     content = args.get("content", "")
     
     try:
@@ -144,13 +170,15 @@ def iknow_save_document_handler(args: Dict[str, Any]) -> str:
         cat_dir.mkdir(parents=True, exist_ok=True)
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).strip()
-        filename = f"{safe_title}_{timestamp}.md"
+        safe_keyword = "".join(c for c in keyword if c.isalnum() or c in (' ', '-', '_')).strip()
+        filename = f"{timestamp}_{safe_keyword}.md"
         
         filepath = cat_dir / filename
         filepath.write_text(content, encoding="utf-8")
         
-        return f"文档已成功保存至: {filepath}"
+        git_status = _sync_to_github(f"docs: auto-save document {filename}")
+        
+        return f"文档已成功保存至: {filepath}\n{git_status}"
     except Exception as e:
         return f"保存失败: {str(e)}"
 
@@ -159,15 +187,15 @@ registry.register(
     toolset="iknow",
     schema={
         "name": "iknow_save_document",
-        "description": "Save the summarized markdown content to the local knowledge base.",
+        "description": "Save the summarized markdown content to the local knowledge base, and automatically sync to GitHub. Naming convention: [timestamp]_[keyword].md",
         "parameters": {
             "type": "object",
             "properties": {
-                "category": {"type": "string"},
-                "title": {"type": "string"},
+                "category": {"type": "string", "description": "Category of the document (e.g., '大模型资讯')"},
+                "keyword": {"type": "string", "description": "Core keyword representing the content, used for the filename."},
                 "content": {"type": "string", "description": "The full markdown content with citations [^n]."}
             },
-            "required": ["category", "title", "content"]
+            "required": ["category", "keyword", "content"]
         }
     },
     handler=iknow_save_document_handler,
@@ -181,6 +209,8 @@ def iknow_render_graph_handler(args: Dict[str, Any]) -> str:
     """
     nodes = args.get("nodes", [])
     edges = args.get("edges", [])
+    category = args.get("category", "未分类")
+    keyword = args.get("keyword", "知识图谱")
     
     if not nodes or not edges:
         return "节点或边为空，无法生成图谱。"
@@ -199,11 +229,19 @@ def iknow_render_graph_handler(args: Dict[str, Any]) -> str:
         net = Network(height="600px", width="100%", bgcolor="#ffffff", font_color="black")
         net.from_nx(G)
         
+        cat_dir = GRAPHS_DIR / category.replace("/", "_")
+        cat_dir.mkdir(parents=True, exist_ok=True)
+        
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_path = GRAPHS_DIR / f"knowledge_graph_{timestamp}.html"
+        safe_keyword = "".join(c for c in keyword if c.isalnum() or c in (' ', '-', '_')).strip()
+        filename = f"{timestamp}_{safe_keyword}.html"
+        
+        output_path = cat_dir / filename
         net.save_graph(str(output_path))
         
-        return f"关系图谱已成功渲染并保存至: {output_path}"
+        git_status = _sync_to_github(f"docs: auto-save graph {filename}")
+        
+        return f"关系图谱已成功渲染并保存至: {output_path}\n{git_status}"
     except ImportError:
         return "缺少依赖: 请在环境中安装 networkx 和 pyvis (pip install networkx pyvis)"
     except Exception as e:
@@ -214,10 +252,12 @@ registry.register(
     toolset="iknow",
     schema={
         "name": "iknow_render_graph",
-        "description": "Render a knowledge graph HTML file using provided nodes and edges extracted by the LLM.",
+        "description": "Render a knowledge graph HTML file using provided nodes and edges, and automatically sync to GitHub. Naming convention: [timestamp]_[keyword].html",
         "parameters": {
             "type": "object",
             "properties": {
+                "category": {"type": "string", "description": "Category of the document (e.g., '大模型资讯')"},
+                "keyword": {"type": "string", "description": "Core keyword representing the graph, used for the filename."},
                 "nodes": {
                     "type": "array",
                     "items": {
@@ -243,7 +283,7 @@ registry.register(
                     }
                 }
             },
-            "required": ["nodes", "edges"]
+            "required": ["category", "keyword", "nodes", "edges"]
         }
     },
     handler=iknow_render_graph_handler,
