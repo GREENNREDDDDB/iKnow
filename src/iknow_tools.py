@@ -164,6 +164,15 @@ def iknow_save_document_handler(args: Dict[str, Any]) -> str:
     category = args.get("category", "未分类")
     keyword = args.get("keyword", "资讯")
     content = args.get("content", "")
+    sources = args.get("sources", [])
+    
+    # 将源链接附加到文档末尾
+    if sources:
+        content += "\n\n---\n### 🔗 来源参考\n"
+        for idx, source in enumerate(sources, 1):
+            title = source.get("title", f"来源 {idx}")
+            url = source.get("url", "#")
+            content += f"{idx}. [{title}]({url})\n"
     
     try:
         cat_dir = DOCS_DIR / category.replace("/", "_")
@@ -193,9 +202,21 @@ registry.register(
             "properties": {
                 "category": {"type": "string", "description": "Category of the document (e.g., '大模型资讯')"},
                 "keyword": {"type": "string", "description": "Core keyword representing the content, used for the filename."},
-                "content": {"type": "string", "description": "The full markdown content with citations [^n]."}
+                "content": {"type": "string", "description": "The full markdown content with inline citations like [1]."},
+                "sources": {
+                    "type": "array",
+                    "description": "List of source URLs and titles used to generate this summary. These will be appended at the end of the document.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "title": {"type": "string", "description": "Title of the source article/page"},
+                            "url": {"type": "string", "description": "URL of the source"}
+                        },
+                        "required": ["title", "url"]
+                    }
+                }
             },
-            "required": ["category", "keyword", "content"]
+            "required": ["category", "keyword", "content", "sources"]
         }
     },
     handler=iknow_save_document_handler,
