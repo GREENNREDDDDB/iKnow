@@ -250,17 +250,26 @@ def iknow_render_graph_handler(args: Dict[str, Any]) -> str:
         net = Network(height="600px", width="100%", bgcolor="#ffffff", font_color="black")
         net.from_nx(G)
         
-        cat_dir = GRAPHS_DIR / category.replace("/", "_")
+        # 将图谱直接保存在对应的文档目录下，方便同页渲染
+        cat_dir = DOCS_DIR / category.replace("/", "_")
         cat_dir.mkdir(parents=True, exist_ok=True)
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_keyword = "".join(c for c in keyword if c.isalnum() or c in (' ', '-', '_')).strip()
-        filename = f"{timestamp}_{safe_keyword}.html"
+        filename = f"{timestamp}_{safe_keyword}_graph.html"
         
         output_path = cat_dir / filename
         net.save_graph(str(output_path))
         
-        git_status = _sync_to_github(f"docs: auto-save graph {filename}")
+        # 寻找同分类下最新的 markdown 文档，将图谱 iframe 嵌入其中
+        md_files = list(cat_dir.glob("*.md"))
+        if md_files:
+            latest_md = sorted(md_files, key=lambda x: x.stat().st_mtime)[-1]
+            iframe_html = f'\n\n---\n### 🕸️ 知识关系图谱\n<iframe src="./{filename}" width="100%" height="600px" frameborder="0" style="border: 1px solid #eee; border-radius: 8px;"></iframe>\n'
+            with open(latest_md, "a", encoding="utf-8") as f:
+                f.write(iframe_html)
+        
+        git_status = _sync_to_github(f"docs: auto-save graph {filename} and embed in doc")
         
         return f"关系图谱已成功渲染并保存至: {output_path}\n{git_status}"
     except ImportError:
