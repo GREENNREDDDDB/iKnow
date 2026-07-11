@@ -1,0 +1,14 @@
+{
+  "sources": [
+    {
+      "name": "HackerNews",
+      "url": "https://news.ycombinator.com/",
+      "category": "开源社区"
+    },
+    {
+      "name": "机器之心",
+      "url": "https://www.jiqizhixin.com/",
+      "category": "大模型资讯"
+    }
+  ]
+}
