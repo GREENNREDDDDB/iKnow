@@ -1,14 +1,54 @@
 {
   "sources": [
     {
+      "name": "量子位",
+      "url": "https://www.qbitai.com/",
+      "category": "大模型资讯"
+    },
+    {
+      "name": "机器之心",
+      "url": "https://www.jiqizhixin.com/",
+      "category": "大模型资讯",
+      "status": "dead",
+      "note": "网站已改为数据服务落地页，待寻找替代源"
+    },
+    {
+      "name": "36氪AI频道",
+      "url": "https://36kr.com/information/AI",
+      "category": "大模型资讯",
+      "status": "unstable",
+      "note": "频繁返回 504，需要重试"
+    },
+    {
       "name": "HackerNews",
       "url": "https://news.ycombinator.com/",
       "category": "开源社区"
     },
     {
-      "name": "量子位",
-      "url": "https://www.qbitai.com/",
-      "category": "大模型资讯"
+      "name": "GitHub Trending",
+      "url": "https://github.com/trending",
+      "category": "开源社区"
+    },
+    {
+      "name": "Kickstarter科技",
+      "url": "https://www.kickstarter.com/discover/categories/technology",
+      "category": "众筹平台",
+      "status": "pending_verify",
+      "note": "JavaScript 渲染页面，可能需要浏览器抓取"
+    },
+    {
+      "name": "新华社科技",
+      "url": "https://www.news.cn/tech",
+      "category": "国内政策",
+      "status": "pending_verify",
+      "note": "需验证可抓取性"
+    },
+    {
+      "name": "Reuters Tech",
+      "url": "https://www.reuters.com/technology/",
+      "category": "国际形式",
+      "status": "pending_verify",
+      "note": "需验证可抓取性"
     }
   ]
 }

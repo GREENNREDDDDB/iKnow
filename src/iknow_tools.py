@@ -65,7 +65,7 @@ def _sync_to_github(commit_msg: str) -> str:
 # =====================================================================
 # 1. 目标网站管理模块 (CRUD)
 # =====================================================================
-def iknow_manage_sources_handler(args: Dict[str, Any]) -> str:
+def iknow_manage_sources_handler(args: Dict[str, Any], **kwargs) -> str:
     """管理 iKnow 资讯源（增删查改）"""
     action = args.get("action")
     name = args.get("name")
@@ -127,7 +127,7 @@ registry.register(
 # =====================================================================
 # 2. 网页资源获取流转 (结合 Hermes web_extract)
 # =====================================================================
-def iknow_get_pending_tasks_handler(args: Dict[str, Any]) -> str:
+def iknow_get_pending_tasks_handler(args: Dict[str, Any], **kwargs) -> str:
     """获取今天需要采集的源列表，提示 LLM 去调用 web_extract"""
     try:
         data = json.loads(SOURCES_FILE.read_text(encoding="utf-8"))
@@ -159,35 +159,136 @@ registry.register(
 # =====================================================================
 # 3 & 4. 核心业务：文档存储与图谱渲染
 # =====================================================================
-def iknow_save_document_handler(args: Dict[str, Any]) -> str:
-    """保存 LLM 处理好的 Markdown 总结文档，并同步到 GitHub"""
+def _format_sources_block(sources: List[Dict]) -> str:
+    """格式化来源参考块"""
+    if not sources:
+        return ""
+    block = "\n\n---\n### 🔗 来源参考\n"
+    for idx, source in enumerate(sources, 1):
+        title = source.get("title", f"来源 {idx}")
+        url = source.get("url", "#")
+        block += f"{idx}. [{title}]({url})\n"
+    return block
+
+
+def _regenerate_toc(content: str) -> str:
+    """从文档内容中提取 ### 标题，重新生成目录"""
+    import re
+    # 提取所有 ### 开头的标题（文章标题），排除来源参考和图谱等元数据节
+    toc_entries = [t for t in re.findall(r'^###\s+(.+)$', content, re.MULTILINE)
+                   if not any(skip in t for skip in ['🔗', '🕸️', '来源参考', '知识关系'])]
+    if not toc_entries:
+        return content
+    
+    toc = "\n## 📋 今日概览\n\n"
+    for i, title in enumerate(toc_entries, 1):
+        # 清理标题中的 markdown 链接语法用于锚点
+        anchor = re.sub(r'[^\w\u4e00-\u9fff\s-]', '', title).strip().replace(' ', '-').lower()
+        toc += f"| {i} | [{title.strip()}](#{anchor}) |\n"
+    
+    # 替换或插入 TOC
+    # 先移除旧的 TOC 块（如果在文档中存在）
+    content = re.sub(r'\n## 📋 今日概览\n\n(\|.*\n)*\n?', '\n', content)
+    
+    # 在第一个 ## 标题之前插入新的 TOC（在 # 标题之后）
+    first_h2 = re.search(r'\n## ', content)
+    if first_h2:
+        pos = first_h2.start()
+        content = content[:pos] + '\n' + toc + content[pos:]
+    else:
+        # 在文档头之后插入
+        lines = content.split('\n')
+        # 找到第一段 header 结束（空行或 --- 后）
+        insert_at = 0
+        for i, line in enumerate(lines):
+            if line.startswith('# ') and i < 3:
+                insert_at = i + 1
+            elif line.strip() == '' and insert_at > 0:
+                insert_at = i + 1
+                break
+        lines.insert(insert_at, toc)
+        content = '\n'.join(lines)
+    
+    return content
+
+
+def iknow_save_document_handler(args: Dict[str, Any], **kwargs) -> str:
+    """保存 LLM 处理好的 Markdown 总结文档，并同步到 GitHub。
+    
+    支持两种模式：
+    - mode='single' (默认): 每篇文章单独保存为 {timestamp}_{keyword}.md
+    - mode='daily': 所有文章追加到当天汇总 {YYYYMMDD}.md，自动管理目录
+    """
     category = args.get("category", "未分类")
     keyword = args.get("keyword", "资讯")
     content = args.get("content", "")
     sources = args.get("sources", [])
-    
-    # 将源链接附加到文档末尾
-    if sources:
-        content += "\n\n---\n### 🔗 来源参考\n"
-        for idx, source in enumerate(sources, 1):
-            title = source.get("title", f"来源 {idx}")
-            url = source.get("url", "#")
-            content += f"{idx}. [{title}]({url})\n"
+    mode = args.get("mode", "single")
     
     try:
         cat_dir = DOCS_DIR / category.replace("/", "_")
         cat_dir.mkdir(parents=True, exist_ok=True)
         
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        safe_keyword = "".join(c for c in keyword if c.isalnum() or c in (' ', '-', '_')).strip()
-        filename = f"{timestamp}_{safe_keyword}.md"
+        if mode == "daily":
+            # 每日汇总模式：所有文章存入 {YYYYMMDD}.md
+            date_str = datetime.now().strftime("%Y%m%d")
+            date_display = datetime.now().strftime("%Y年%m月%d日")
+            filename = f"{date_str}.md"
+            filepath = cat_dir / filename
+            
+            # 给文章内容加来源
+            content_with_sources = content + _format_sources_block(sources)
+            
+            if filepath.exists():
+                # 追加模式
+                existing = filepath.read_text(encoding="utf-8")
+                # 检查是否已存在相同标题的节（去重）
+                # 用 ### 标题的第一行来判断
+                title_match = content.strip().split('\n')[0]
+                if title_match.startswith('### ') and title_match in existing:
+                    return f"⏭️ 跳过重复文章（已存在于 {filename}）: {title_match}"
+                
+                # 在最后一个 ### 节之后追加，或在文档末尾追加
+                new_content = existing.rstrip() + "\n\n---\n\n" + content_with_sources
+                # 重新生成 TOC
+                new_content = _regenerate_toc(new_content)
+                # 更新最后更新时间
+                import re
+                new_content = re.sub(
+                    r'\*最后更新: .*\*',
+                    f'*最后更新: {datetime.now().strftime("%Y-%m-%d %H:%M")}*',
+                    new_content
+                )
+            else:
+                # 新建日汇总
+                header = f"# {category} — {date_display}\n\n"
+                header += f"> 📅 创建于 {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
+                header += "---\n"
+                new_content = header + content_with_sources
+                new_content = _regenerate_toc(new_content)
+                new_content += f"\n\n---\n\n*最后更新: {datetime.now().strftime('%Y-%m-%d %H:%M')}*"
+            
+            filepath.write_text(new_content, encoding="utf-8")
+            git_status = _sync_to_github(f"docs: daily update {category}/{filename}")
+            
+            article_count = new_content.count('\n### ') 
+            return f"📄 每日汇总已更新: {filepath}\n📊 当前收录 {article_count} 篇文章\n{git_status}"
         
-        filepath = cat_dir / filename
-        filepath.write_text(content, encoding="utf-8")
-        
-        git_status = _sync_to_github(f"docs: auto-save document {filename}")
-        
-        return f"文档已成功保存至: {filepath}\n{git_status}"
+        else:
+            # 单篇模式（向后兼容）
+            content_with_sources = content + _format_sources_block(sources)
+            
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            safe_keyword = "".join(c for c in keyword if c.isalnum() or c in (' ', '-', '_')).strip()
+            filename = f"{timestamp}_{safe_keyword}.md"
+            
+            filepath = cat_dir / filename
+            filepath.write_text(content_with_sources, encoding="utf-8")
+            
+            git_status = _sync_to_github(f"docs: auto-save document {filename}")
+            
+            return f"文档已成功保存至: {filepath}\n{git_status}"
+            
     except Exception as e:
         return f"保存失败: {str(e)}"
 
@@ -200,9 +301,10 @@ registry.register(
         "parameters": {
             "type": "object",
             "properties": {
+                "mode": {"type": "string", "enum": ["single", "daily"], "description": "Save mode: 'single' (default) creates a separate file per article; 'daily' appends to {YYYYMMDD}.md with auto TOC + dedup."},
                 "category": {"type": "string", "description": "Category of the document (e.g., '大模型资讯')"},
-                "keyword": {"type": "string", "description": "Core keyword representing the content, used for the filename."},
-                "content": {"type": "string", "description": "The full markdown content with inline citations like [1]."},
+                "keyword": {"type": "string", "description": "Core keyword representing the content, used for the filename in 'single' mode."},
+                "content": {"type": "string", "description": "The full markdown content. In 'daily' mode, each article should start with '### N. Title' for TOC generation."},
                 "sources": {
                     "type": "array",
                     "description": "List of source URLs and titles used to generate this summary. These will be appended at the end of the document.",
@@ -223,15 +325,17 @@ registry.register(
     emoji="💾"
 )
 
-def iknow_render_graph_handler(args: Dict[str, Any]) -> str:
+def iknow_render_graph_handler(args: Dict[str, Any], **kwargs) -> str:
     """
     接收 LLM 提取的实体和关系，利用 NetworkX + Pyvis 渲染本地 HTML。
-    完全取代了原来正则提取实体的硬编码逻辑。
+    支持 daily 模式：自动将图谱嵌入当天的日汇总文档。
     """
     nodes = args.get("nodes", [])
     edges = args.get("edges", [])
     category = args.get("category", "未分类")
     keyword = args.get("keyword", "知识图谱")
+    mode = args.get("mode", "single")
+    target_document = args.get("target_document", None)  # 可选：指定目标 .md 文件名
     
     if not nodes or not edges:
         return "节点或边为空，无法生成图谱。"
@@ -250,28 +354,47 @@ def iknow_render_graph_handler(args: Dict[str, Any]) -> str:
         net = Network(height="600px", width="100%", bgcolor="#ffffff", font_color="black")
         net.from_nx(G)
         
-        # 将图谱直接保存在对应的文档目录下，方便同页渲染
         cat_dir = DOCS_DIR / category.replace("/", "_")
         cat_dir.mkdir(parents=True, exist_ok=True)
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_keyword = "".join(c for c in keyword if c.isalnum() or c in (' ', '-', '_')).strip()
-        filename = f"{timestamp}_{safe_keyword}_graph.html"
         
-        output_path = cat_dir / filename
+        if mode == "daily":
+            # 每日模式：图谱命名为 {YYYMMDD}_{keyword}_graph.html
+            date_str = datetime.now().strftime("%Y%m%d")
+            graph_filename = f"{date_str}_{safe_keyword}_graph.html"
+            # 目标文档：指定文件 > 当天的日汇总 > 最新 .md
+            if target_document:
+                target_md = cat_dir / target_document
+            else:
+                daily_md = cat_dir / f"{date_str}.md"
+                if daily_md.exists():
+                    target_md = daily_md
+                else:
+                    md_files = list(cat_dir.glob("*.md"))
+                    target_md = sorted(md_files, key=lambda x: x.stat().st_mtime)[-1] if md_files else None
+        else:
+            # 单篇模式：保持原有命名逻辑
+            graph_filename = f"{timestamp}_{safe_keyword}_graph.html"
+            md_files = list(cat_dir.glob("*.md"))
+            target_md = sorted(md_files, key=lambda x: x.stat().st_mtime)[-1] if md_files else None
+        
+        output_path = cat_dir / graph_filename
         net.save_graph(str(output_path))
         
-        # 寻找同分类下最新的 markdown 文档，将图谱 iframe 嵌入其中
-        md_files = list(cat_dir.glob("*.md"))
-        if md_files:
-            latest_md = sorted(md_files, key=lambda x: x.stat().st_mtime)[-1]
-            iframe_html = f'\n\n---\n### 🕸️ 知识关系图谱\n<iframe src="./{filename}" width="100%" height="600px" frameborder="0" style="border: 1px solid #eee; border-radius: 8px;"></iframe>\n'
-            with open(latest_md, "a", encoding="utf-8") as f:
+        # 将图谱 iframe 嵌入目标文档
+        if target_md and target_md.exists():
+            iframe_html = f'\n\n---\n### 🕸️ 知识关系图谱\n<iframe src="./{graph_filename}" width="100%" height="600px" frameborder="0" style="border: 1px solid #eee; border-radius: 8px;"></iframe>\n'
+            with open(target_md, "a", encoding="utf-8") as f:
                 f.write(iframe_html)
+            embed_target = str(target_md)
+        else:
+            embed_target = "无（未找到目标文档）"
         
-        git_status = _sync_to_github(f"docs: auto-save graph {filename} and embed in doc")
+        git_status = _sync_to_github(f"docs: auto-save graph {graph_filename} and embed in doc")
         
-        return f"关系图谱已成功渲染并保存至: {output_path}\n{git_status}"
+        return f"关系图谱已成功渲染并保存至: {output_path}\n嵌入目标: {embed_target}\n{git_status}"
     except ImportError:
         return "缺少依赖: 请在环境中安装 networkx 和 pyvis (pip install networkx pyvis)"
     except Exception as e:
@@ -286,8 +409,10 @@ registry.register(
         "parameters": {
             "type": "object",
             "properties": {
+                "mode": {"type": "string", "enum": ["single", "daily"], "description": "Mode: 'single' (default) matches latest .md; 'daily' targets today's {YYYYMMDD}.md."},
                 "category": {"type": "string", "description": "Category of the document (e.g., '大模型资讯')"},
                 "keyword": {"type": "string", "description": "Core keyword representing the graph, used for the filename."},
+                "target_document": {"type": "string", "description": "Optional: explicit target .md filename (e.g., '20260714.md'). Overrides auto-detection."},
                 "nodes": {
                     "type": "array",
                     "items": {
