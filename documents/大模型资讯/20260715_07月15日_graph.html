@@ -1,0 +1,155 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        
+            <script src="lib/bindings/utils.js"></script>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/dist/vis-network.min.css" integrity="sha512-WgxfT5LWjfszlPHXRmBWHkV2eceiWTOBvrKCNbdgDYTHrT2AeLCGbF4sZlZw3UMN3WtL0tGUoIAKsu8mllg/XA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/vis-network.min.js" integrity="sha512-LnvoEWDFrqGHlHmDD2101OrLcbsfkrzoSpvtSQtxK3RMnRV0eOkhhBN2dXHKRrUU8p2DGRTk35n4O8nWSVe1mQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+            
+        
+<center>
+<h1></h1>
+</center>
+
+<!-- <link rel="stylesheet" href="../node_modules/vis/dist/vis.min.css" type="text/css" />
+<script type="text/javascript" src="../node_modules/vis/dist/vis.js"> </script>-->
+        <link
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css"
+          rel="stylesheet"
+          integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6"
+          crossorigin="anonymous"
+        />
+        <script
+          src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js"
+          integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf"
+          crossorigin="anonymous"
+        ></script>
+
+
+        <center>
+          <h1></h1>
+        </center>
+        <style type="text/css">
+
+             #mynetwork {
+                 width: 100%;
+                 height: 600px;
+                 background-color: #ffffff;
+                 border: 1px solid lightgray;
+                 position: relative;
+                 float: left;
+             }
+
+             
+
+             
+
+             
+        </style>
+    </head>
+
+
+    <body>
+        <div class="card" style="width: 100%">
+            
+            
+            <div id="mynetwork" class="card-body"></div>
+        </div>
+
+        
+        
+
+        <script type="text/javascript">
+
+              // initialize global variables.
+              var edges;
+              var nodes;
+              var allNodes;
+              var allEdges;
+              var nodeColors;
+              var originalNodes;
+              var network;
+              var container;
+              var options, data;
+              var filter = {
+                  item : '',
+                  property : '',
+                  value : []
+              };
+
+              
+
+              
+
+              // This method is responsible for drawing the graph, returns the drawn network
+              function drawGraph() {
+                  var container = document.getElementById('mynetwork');
+
+                  
+
+                  // parsing and collecting nodes and edges from the python
+                  nodes = new vis.DataSet([{"color": "#97c2fc", "font": {"color": "black"}, "id": "step_aos", "label": "\u9636\u8dc3Step AOS\u7cfb\u7edf", "shape": "dot", "size": 10, "type": "product"}, {"color": "#97c2fc", "font": {"color": "black"}, "id": "agent_os", "label": "\ud83e\udde0 \u667a\u80fd\u4f53OS", "shape": "dot", "size": 10, "type": "theme"}, {"color": "#97c2fc", "font": {"color": "black"}, "id": "agnes", "label": "Agnes-2.5-Flash", "shape": "dot", "size": 10, "type": "model"}, {"color": "#97c2fc", "font": {"color": "black"}, "id": "ai_coding", "label": "\ud83d\udcbb AI Coding", "shape": "dot", "size": 10, "type": "theme"}, {"color": "#97c2fc", "font": {"color": "black"}, "id": "aishi", "label": "\u7231\u8bd7\u79d1\u6280C\u8f6e29.8\u4ebf", "shape": "dot", "size": 10, "type": "company"}, {"color": "#97c2fc", "font": {"color": "black"}, "id": "world_model", "label": "\ud83c\udf10 \u4e16\u754c\u6a21\u578b", "shape": "dot", "size": 10, "type": "theme"}, {"color": "#97c2fc", "font": {"color": "black"}, "id": "gaode", "label": "\u9ad8\u5fb7ABot-World", "shape": "dot", "size": 10, "type": "product"}, {"color": "#97c2fc", "font": {"color": "black"}, "id": "gpt56", "label": "GPT-5.6-sol", "shape": "dot", "size": 10, "type": "model"}, {"color": "#97c2fc", "font": {"color": "black"}, "id": "weride", "label": "\u6587\u8fdc\u77e5\u884cL2++\u51fa\u6d77", "shape": "dot", "size": 10, "type": "company"}, {"color": "#97c2fc", "font": {"color": "black"}, "id": "embodied_ai", "label": "\ud83e\udd16 \u5177\u8eab\u667a\u80fd", "shape": "dot", "size": 10, "type": "theme"}, {"color": "#97c2fc", "font": {"color": "black"}, "id": "xiaomi_robot", "label": "\u5c0f\u7c73\u673a\u5668\u4eba\u4e0a\u5c97\u4ea7\u7ebf", "shape": "dot", "size": 10, "type": "product"}, {"color": "#97c2fc", "font": {"color": "black"}, "id": "zhuji", "label": "\u9010\u9645\u52a8\u529b\u878d\u8d442\u4ebf\u7f8e\u5143", "shape": "dot", "size": 10, "type": "company"}, {"color": "#97c2fc", "font": {"color": "black"}, "id": "tsinghua_dog", "label": "\u6e05\u534e\u673a\u5668\u72d7\u4eba\u673a\u534f\u4f5c", "shape": "dot", "size": 10, "type": "research"}, {"color": "#97c2fc", "font": {"color": "black"}, "id": "bonsai", "label": "Bonsai 27B\u624b\u673a\u7aef", "shape": "dot", "size": 10, "type": "model"}, {"color": "#97c2fc", "font": {"color": "black"}, "id": "cursor", "label": "Cursor 0day\u6f0f\u6d1e", "shape": "dot", "size": 10, "type": "event"}]);
+                  edges = new vis.DataSet([{"from": "step_aos", "label": "\u5b9a\u4e49", "to": "agent_os", "width": 1}, {"from": "step_aos", "label": "\u5171\u540c\u63a8\u52a8AI Coding\u81ea\u52a8", "to": "agnes", "width": 1}, {"from": "agnes", "label": "\u514d\u8d39\u65b9\u6848", "to": "ai_coding", "width": 1}, {"from": "aishi", "label": "\u6784\u5efa\u5b9e\u65f6\u4e16\u754c\u6a21\u578b", "to": "world_model", "width": 1}, {"from": "gaode", "label": "\u964d\u4f4e\u4e16\u754c\u6a21\u578b\u95e8\u69db", "to": "world_model", "width": 1}, {"from": "gpt56", "label": "\u8bc4\u6d4b\u57fa\u51c6", "to": "ai_coding", "width": 1}, {"from": "weride", "label": "\u5e94\u7528\u4e16\u754c\u6a21\u578b\u4e8e\u81ea\u52a8\u9a7e\u9a76", "to": "world_model", "width": 1}, {"from": "weride", "label": "\u81ea\u52a8\u9a7e\u9a76\u573a\u666f", "to": "embodied_ai", "width": 1}, {"from": "xiaomi_robot", "label": "\u5b9e\u8df5", "to": "embodied_ai", "width": 1}, {"from": "zhuji", "label": "\u8d44\u672c\u63a8\u52a8", "to": "embodied_ai", "width": 1}, {"from": "tsinghua_dog", "label": "\u4eba\u673a\u534f\u4f5c\u7814\u7a76", "to": "embodied_ai", "width": 1}, {"from": "bonsai", "label": "\u63d0\u4f9b\u7aef\u4fa7\u63a8\u7406\u80fd\u529b", "to": "agent_os", "width": 1}, {"from": "cursor", "label": "\u5b89\u5168\u6311\u6218", "to": "ai_coding", "width": 1}, {"from": "world_model", "label": "\u5e95\u5c42\u6280\u672f\u652f\u6491", "to": "agent_os", "width": 1}, {"from": "world_model", "label": "\u4ee3\u7801\u4e16\u754c\u6a21\u578b\u5e94\u7528", "to": "ai_coding", "width": 1}, {"from": "embodied_ai", "label": "\u8de8\u9886\u57df\u5f71\u54cd", "to": "agent_os", "width": 1}]);
+
+                  nodeColors = {};
+                  allNodes = nodes.get({ returnType: "Object" });
+                  for (nodeId in allNodes) {
+                    nodeColors[nodeId] = allNodes[nodeId].color;
+                  }
+                  allEdges = edges.get({ returnType: "Object" });
+                  // adding nodes and edges to the graph
+                  data = {nodes: nodes, edges: edges};
+
+                  var options = {
+    "configure": {
+        "enabled": false
+    },
+    "edges": {
+        "color": {
+            "inherit": true
+        },
+        "smooth": {
+            "enabled": true,
+            "type": "dynamic"
+        }
+    },
+    "interaction": {
+        "dragNodes": true,
+        "hideEdgesOnDrag": false,
+        "hideNodesOnDrag": false
+    },
+    "physics": {
+        "enabled": true,
+        "stabilization": {
+            "enabled": true,
+            "fit": true,
+            "iterations": 1000,
+            "onlyDynamicEdges": false,
+            "updateInterval": 50
+        }
+    }
+};
+
+                  
+
+
+                  
+
+                  network = new vis.Network(container, data, options);
+
+                  
+
+                  
+
+                  
+
+
+                  
+
+                  return network;
+
+              }
+              drawGraph();
+        </script>
+    </body>
+</html>
